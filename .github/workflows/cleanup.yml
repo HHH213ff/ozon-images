@@ -1,0 +1,36 @@
+name: cleanup old images
+
+on:
+  schedule:
+    # 每天 UTC 19:00 = 北京时间 03:00
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Delete image folders older than 7 days
+        run: |
+          echo "=== 清理前的文件夹 ==="
+          ls -1d 2026* 2>/dev/null || echo "(no image folders)"
+          find . -mindepth 1 -maxdepth 1 -type d -name '2026*' -mtime +7 -exec rm -rf {} +
+          echo "=== 清理后的文件夹 ==="
+          ls -1d 2026* 2>/dev/null || echo "(no image folders)"
+
+      - name: Commit and push
+        run: |
+          git config user.name "cleanup-bot"
+          git config user.email "cleanup-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "没有需要清理的图片"
+            exit 0
+          fi
+          git commit -m "chore: cleanup images older than 7 days"
+          git push
